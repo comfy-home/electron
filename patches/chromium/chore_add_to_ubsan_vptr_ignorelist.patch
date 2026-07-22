@@ -1,0 +1,21 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: David Sanders <dsanders11@ucsbalum.com>
+Date: Tue, 21 Jul 2026 23:29:10 -0700
+Subject: chore: add to UBSan vptr ignorelist
+
+Change-Id: Ic70cae72965656e31d957ca3cee85772ded70e42
+
+diff --git a/tools/ubsan/vptr_ignorelist.txt b/tools/ubsan/vptr_ignorelist.txt
+index 20c4222c780951af064a10f64264db958b1b8009..cb17ad2acbb166d8c12e93b0a7bad0f4b223089b 100644
+--- a/tools/ubsan/vptr_ignorelist.txt
++++ b/tools/ubsan/vptr_ignorelist.txt
+@@ -126,3 +126,9 @@ type:*StartPageService*
+ # Remove once function attribute level ignorelisting is implemented.
+ # See crbug.com/476063.
+ fun:*forbidGCDuringConstruction*
++
++#############################################################################
++# Electron-specific ignores
++#
++type:*AutoPipSettingOverlayView*
++type:*Profile*
