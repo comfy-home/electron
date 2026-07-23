@@ -133,6 +133,7 @@ inline constexpr std::string_view kVisualEffectState = "visualEffectState";
 inline constexpr std::string_view kTrafficLightPosition =
     "trafficLightPosition";
 inline constexpr std::string_view kRoundedCorners = "roundedCorners";
+inline constexpr std::string_view kCornerRadius = "cornerRadius";
 
 inline constexpr std::string_view ktitleBarOverlay = "titleBarOverlay";
 

@@ -410,6 +410,7 @@ NativeWindowViews::NativeWindowViews(const int32_t base_window_id,
 
 #if BUILDFLAG(IS_LINUX)
   options.Get(options::kRoundedCorners, &rounded_corner_);
+  options.Get(options::kCornerRadius, &corner_radius_);
 #endif
 
   if (has_frame() && !has_client_frame()) {

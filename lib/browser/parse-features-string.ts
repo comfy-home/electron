@@ -23,7 +23,8 @@ const keysOfTypeNumberCompileTimeCheck: { [K in IntegerBrowserWindowOptionKeys]:
   maxWidth: true,
   minHeight: true,
   maxHeight: true,
-  opacity: true
+  opacity: true,
+  cornerRadius: true
 };
 // Note `top` / `left` are special cases from the browser which we later convert
 // to y / x.

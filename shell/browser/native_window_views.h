@@ -214,6 +214,7 @@ class NativeWindowViews : public NativeWindow,
 #endif
 
   [[nodiscard]] bool has_rounded_corners() const { return rounded_corner_; }
+  [[nodiscard]] int corner_radius() const { return corner_radius_; }
 
  private:
   void set_overlay_button_color(std::optional<SkColor> color) {
@@ -310,6 +311,9 @@ class NativeWindowViews : public NativeWindow,
 
   // This value is determined when the window is created.
   bool rounded_corner_ = true;
+  // Custom corner radius in DIP. -1 means use the Chrome/layout-provider
+  // default. Only effective when rounded_corner_ is true.
+  int corner_radius_ = -1;
 
 #if BUILDFLAG(IS_WIN)
 

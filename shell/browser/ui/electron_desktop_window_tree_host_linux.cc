@@ -14,9 +14,13 @@
 #include "shell/browser/api/electron_api_web_contents.h"
 #include "shell/browser/linux/x11_util.h"
 #include "shell/browser/native_window_views.h"
+#include "ui/aura/client/cursor_client.h"
 #include "ui/aura/window_delegate.h"
+#include "ui/base/cursor/cursor.h"
+#include "ui/base/cursor/mojom/cursor_type.mojom-shared.h"
 #include "ui/base/hit_test.h"
 #include "ui/display/screen.h"
+#include "ui/events/event.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/linux/linux_ui.h"
 #include "ui/ozone/public/ozone_platform.h"
@@ -253,6 +257,71 @@ void ElectronDesktopWindowTreeHostLinux::DispatchEvent(ui::Event* event) {
         is_mousedown &&
         (mouse_event->IsRightMouseButton() ||
          (mouse_event->IsLeftMouseButton() && mouse_event->IsControlDown()));
+
+#if BUILDFLAG(IS_LINUX)
+    // On Wayland, for non-client mouse move events (resize borders and drag
+    // areas), set the appropriate cursor directly and stop propagation.
+    // Otherwise, CompoundEventFilter sets kNull for non-client components and
+    // the renderer asynchronously overrides with the web content's CSS cursor.
+    if (!is_system_menu_trigger && x11_util::IsWayland() &&
+        mouse_event->type() == ui::EventType::kMouseMoved &&
+        GetContentWindow() && GetContentWindow()->delegate()) {
+      gfx::PointF location = mouse_event->location_f();
+      gfx::PointF location_in_dip =
+          GetRootTransform().InverseMapPoint(location).value_or(location);
+      int hit_test_code = GetContentWindow()->delegate()->GetNonClientComponent(
+          gfx::ToRoundedPoint(location_in_dip));
+
+      auto is_resize_component = [](int ht) {
+        return ht == HTTOP || ht == HTBOTTOM || ht == HTLEFT ||
+               ht == HTRIGHT || ht == HTTOPLEFT || ht == HTTOPRIGHT ||
+               ht == HTBOTTOMLEFT || ht == HTBOTTOMRIGHT;
+      };
+
+      ui::mojom::CursorType cursor_type = ui::mojom::CursorType::kNull;
+      if (is_resize_component(hit_test_code)) {
+        switch (hit_test_code) {
+          case HTTOP:
+            cursor_type = ui::mojom::CursorType::kNorthResize;
+            break;
+          case HTBOTTOM:
+            cursor_type = ui::mojom::CursorType::kSouthResize;
+            break;
+          case HTLEFT:
+            cursor_type = ui::mojom::CursorType::kWestResize;
+            break;
+          case HTRIGHT:
+            cursor_type = ui::mojom::CursorType::kEastResize;
+            break;
+          case HTTOPLEFT:
+            cursor_type = ui::mojom::CursorType::kNorthWestResize;
+            break;
+          case HTTOPRIGHT:
+            cursor_type = ui::mojom::CursorType::kNorthEastResize;
+            break;
+          case HTBOTTOMLEFT:
+            cursor_type = ui::mojom::CursorType::kSouthWestResize;
+            break;
+          case HTBOTTOMRIGHT:
+            cursor_type = ui::mojom::CursorType::kSouthEastResize;
+            break;
+        }
+      } else if (hit_test_code == HTCAPTION) {
+        cursor_type = ui::mojom::CursorType::kGrab;
+      }
+
+      if (cursor_type != ui::mojom::CursorType::kNull) {
+        auto* root_window = GetContentWindow()->GetRootWindow();
+        auto* cursor_client = aura::client::GetCursorClient(root_window);
+        if (cursor_client) {
+          cursor_client->SetCursor(ui::Cursor(cursor_type));
+        }
+        // Stop propagation so the renderer doesn't override the cursor.
+        event->StopPropagation();
+        return;
+      }
+    }
+#endif
 
     if (!is_system_menu_trigger) {
       views::DesktopWindowTreeHostLinux::DispatchEvent(event);

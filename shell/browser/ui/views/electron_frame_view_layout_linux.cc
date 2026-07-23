@@ -80,6 +80,13 @@ gfx::RoundedCornersF ElectronFrameViewLayoutLinux::GetCornerRadii() const {
   if (window_->IsMaximized() || window_->IsFullscreen())
     return gfx::RoundedCornersF();
 
+  // Use custom corner radius if specified, otherwise fall back to the
+  // Chrome/layout-provider default.
+  const int custom = window_->corner_radius();
+  if (custom >= 0) {
+    float r = static_cast<float>(custom);
+    return gfx::RoundedCornersF(r, r, r, r);
+  }
   // Chrome rounds only the top corners, so mirror its default value to all 4.
   return gfx::RoundedCornersF(
       FrameViewLayoutLinux::GetCornerRadii().upper_left());

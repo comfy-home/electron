@@ -6,6 +6,7 @@
 #include "shell/browser/ui/views/electron_frame_view_linux.h"
 
 #include "base/i18n/rtl.h"
+#include "shell/browser/linux/x11_util.h"
 #include "shell/browser/native_window_views.h"
 #include "shell/browser/ui/inspectable_web_contents_view.h"
 #include "shell/browser/ui/views/caption_button_placeholder_container.h"
@@ -77,9 +78,129 @@ bool ElectronFrameViewLinux::HasWindowTitle() const {
 }
 
 int ElectronFrameViewLinux::NonClientHitTest(const gfx::Point& point) {
-  int result = FrameViewLinux::NonClientHitTest(point);
-  if (result != HTCLIENT)
-    return result;
+#if BUILDFLAG(IS_LINUX)
+  // On Wayland, the base FrameViewLinux::NonClientHitTest uses rectangular
+  // resize borders that don't account for the rounded corner region. When
+  // the corner radius is large (e.g. 70px), corner resize areas are
+  // inaccessible because the point falls within the client area. Handle
+  // resize hit-testing ourselves with corner-radius-aware circles.
+  if (x11_util::IsWayland() && !GetWidget()->IsMaximized() &&
+      !GetWidget()->IsFullscreen() &&
+      GetWidget()->widget_delegate()->CanResize()) {
+    int corner = window_->corner_radius();
+    if (corner < 0)
+      corner = 16;
+
+    // Corner hit areas are circles inscribed in the corner square of size
+    // hit_r, centered at (hit_r, hit_r) from the window corner. This places
+    // the circle tangent to the window edges so it covers the visible part
+    // of the rounded corner (inside the compositor's input region).
+    int hit_r = corner > 40 ? corner / 5 : corner > 10 ? corner / 3 : corner * 6 / 5;
+
+    // The MD shadow has a downward y offset, making the compositor's input
+    // region clip the bottom edge more than the top. Offset bottom corner
+    // circles upward so they stay within the input region.
+    const int bottom_offset = 4;
+
+    const int w = width();
+    const int h = height();
+    const int r2 = hit_r * hit_r;
+    const int c2 = corner * corner;
+
+    // Only trigger resize when the cursor is inside the rendered (opaque)
+    // content. The visual corner arc is centered at the content corner
+    // (inset by frame border) with radius |corner|. Points outside the arc
+    // are in the transparent corner area and should not engage resize.
+    gfx::Insets border = efv_layout()->GetFrameBorderInsets();
+    auto in_opaque = [&](int ax, int ay) {
+      int dx = point.x() - ax;
+      int dy = point.y() - ay;
+      return dx * dx + dy * dy <= c2;
+    };
+
+    // Corners: circles of radius hit_r inscribed at each corner,
+    // restricted to the opaque region inside the corner arc.
+    // Arc centers are at the content corners (inset by frame border).
+    int cx, cy;
+    int dx, dy, dist2;
+
+    cx = border.left() + hit_r;
+    cy = border.top() + hit_r;
+    dx = point.x() - cx;
+    dy = point.y() - cy;
+    dist2 = dx * dx + dy * dy;
+    if (dist2 <= r2 && in_opaque(border.left() + corner, border.top() + corner)) {
+      return HTTOPLEFT;
+    }
+    cx = w - border.right() - hit_r;
+    cy = border.top() + hit_r;
+    dx = point.x() - cx;
+    dy = point.y() - cy;
+    dist2 = dx * dx + dy * dy;
+    if (dist2 <= r2 && in_opaque(w - border.right() - corner, border.top() + corner)) {
+      return HTTOPRIGHT;
+    }
+    cx = border.left() + hit_r;
+    cy = h - border.bottom() - hit_r - bottom_offset;
+    dx = point.x() - cx;
+    dy = point.y() - cy;
+    dist2 = dx * dx + dy * dy;
+    if (dist2 <= r2 && in_opaque(border.left() + corner, h - border.bottom() - corner)) {
+      return HTBOTTOMLEFT;
+    }
+    cx = w - border.right() - hit_r;
+    cy = h - border.bottom() - hit_r - bottom_offset;
+    dx = point.x() - cx;
+    dy = point.y() - cy;
+    dist2 = dx * dx + dy * dy;
+    if (dist2 <= r2 && in_opaque(w - border.right() - corner, h - border.bottom() - corner)) {
+      return HTBOTTOMRIGHT;
+    }
+
+    // Edges: strips along the content boundary (inside the frame border),
+    // but only in the straight part between corner regions. Points in the
+    // corner area of the frame border are transparent and handled only by
+    // the corner checks above.
+    int content_left = border.left() + corner;
+    int content_right = w - border.right() - corner;
+    int content_top = border.top() + corner;
+    int content_bottom = h - border.bottom() - corner;
+
+    if (point.y() < border.top() &&
+        point.x() >= content_left && point.x() < content_right) {
+      return HTTOP;
+    }
+    if (point.y() >= h - border.bottom() &&
+        point.x() >= content_left && point.x() < content_right) {
+      return HTBOTTOM;
+    }
+    if (point.x() < border.left() &&
+        point.y() >= content_top && point.y() < content_bottom) {
+      return HTLEFT;
+    }
+    if (point.x() >= w - border.right() &&
+        point.y() >= content_top && point.y() < content_bottom) {
+      return HTRIGHT;
+    }
+
+    // Fall through to WCO button checks and window_->NonClientHitTest
+    // (which handles HTCAPTION drag region). Skip the base class
+    // FrameViewLinux::NonClientHitTest rectangular resize border.
+  }
+#endif
+
+  // On Wayland, skip the base class rectangular resize border hit-test
+  // (it would match the invisible non-rounded frame border). On other
+  // platforms, use it normally.
+  int result = HTCLIENT;
+#if BUILDFLAG(IS_LINUX)
+  if (!x11_util::IsWayland())
+#endif
+  {
+    result = FrameViewLinux::NonClientHitTest(point);
+    if (result != HTCLIENT)
+      return result;
+  }
 
   // The base class returns HTCLIENT for the WCO titlebar area because the
   // client view overlaps it. Check buttons and the draggable overlay region.
