@@ -108,6 +108,10 @@
   Windows 11 Build 22000 this property has no effect, and frameless windows will
   not have rounded corners. On Linux, rounded corners are only drawn when the
   desktop environment supports client-side decorations.
+* `cornerRadius` Integer (optional) _Linux_ - Custom corner radius in DIP for
+  frameless windows with rounded corners. When specified, overrides the
+  compositor's default radius. Only effective when `roundedCorners` is `true`.
+  Default is the system/layout-provider default.
 * `thickFrame` boolean (optional) _Windows_ - Use `WS_THICKFRAME` style for
   frameless windows on Windows, which adds the standard window frame. Setting it
   to `false` will remove window shadow and window animations, and disable window

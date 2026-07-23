@@ -9,6 +9,9 @@
 #include "ui/aura/window.h"
 #include "ui/base/hit_test.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#if BUILDFLAG(IS_LINUX)
+#include "shell/browser/linux/x11_util.h"
+#endif
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_delegate.h"
 
@@ -30,6 +33,107 @@ gfx::Insets FramelessView::RestoredFrameBorderInsets() const {
 }
 
 int FramelessView::ResizingBorderHitTest(const gfx::Point& point) {
+#if BUILDFLAG(IS_LINUX)
+  // On Wayland, setBounds() cannot change window position — the compositor
+  // controls it. Native xdg_toplevel_resize() is the only way to handle corner
+  // resizes that move the window. Use a custom hit-test with corner-radius-
+  // aware circles at each corner so resize handles match the rounded
+  // corner region, while keeping edge borders thin.
+  if (x11_util::IsWayland()) {
+    bool can_ever_resize = frame_->widget_delegate()
+                               ? frame_->widget_delegate()->CanResize()
+                               : false;
+    if (!can_ever_resize)
+      return HTNOWHERE;
+    if (frame_->IsMaximized() || frame_->IsFullscreen())
+      return HTNOWHERE;
+
+    int corner = window_->corner_radius();
+    if (corner < 0)
+      corner = kResizeAreaCornerSize;
+
+    // Corner hit areas are circles inscribed in the corner square of size
+    // hit_r, centered at (hit_r, hit_r) from the window corner. This places
+    // the circle tangent to the window edges so it covers the visible part
+    // of the rounded corner (inside the compositor's input region).
+    int hit_r = corner > 40 ? corner * 2 / 5 : corner * 2 / 3;
+
+    // The MD shadow has a downward y offset, making the compositor's input
+    // region clip the bottom edge more than the top. Offset bottom corner
+    // circles upward so they stay within the input region.
+    const int bottom_offset = 4;
+
+    const int edge = 4;
+    const int w = width();
+    const int h = height();
+    const int r2 = hit_r * hit_r;
+    const int c2 = corner * corner;
+
+    // Only trigger resize when the cursor is inside the rendered (opaque)
+    // content. The visual corner arc is centered at (corner, corner) from
+    // each window corner with radius |corner|. Points outside the arc are
+    // in the transparent corner area and should not engage resize.
+    auto in_opaque = [&](int ax, int ay) {
+      int dx = point.x() - ax;
+      int dy = point.y() - ay;
+      return dx * dx + dy * dy <= c2;
+    };
+
+    // Corners: circles of radius hit_r inscribed at each corner,
+    // restricted to the opaque region inside the corner arc.
+    int cx, cy;
+    int dx, dy, dist2;
+
+    cx = hit_r;
+    cy = hit_r;
+    dx = point.x() - cx;
+    dy = point.y() - cy;
+    dist2 = dx * dx + dy * dy;
+    if (dist2 <= r2 && in_opaque(corner, corner)) {
+      return HTTOPLEFT;
+    }
+    cx = w - hit_r;
+    cy = hit_r;
+    dx = point.x() - cx;
+    dy = point.y() - cy;
+    dist2 = dx * dx + dy * dy;
+    if (dist2 <= r2 && in_opaque(w - corner, corner)) {
+      return HTTOPRIGHT;
+    }
+    cx = hit_r;
+    cy = h - hit_r - bottom_offset;
+    dx = point.x() - cx;
+    dy = point.y() - cy;
+    dist2 = dx * dx + dy * dy;
+    if (dist2 <= r2 && in_opaque(corner, h - corner)) {
+      return HTBOTTOMLEFT;
+    }
+    cx = w - hit_r;
+    cy = h - hit_r - bottom_offset;
+    dx = point.x() - cx;
+    dy = point.y() - cy;
+    dist2 = dx * dx + dy * dy;
+    if (dist2 <= r2 && in_opaque(w - corner, h - corner)) {
+      return HTBOTTOMRIGHT;
+    }
+
+    // Edges: thin strips between corners
+    if (point.y() < edge) {
+      return HTTOP;
+    }
+    if (point.y() >= h - edge) {
+      return HTBOTTOM;
+    }
+    if (point.x() < edge) {
+      return HTLEFT;
+    }
+    if (point.x() >= w - edge) {
+      return HTRIGHT;
+    }
+
+    return HTNOWHERE;
+  }
+#endif
   return ResizingBorderHitTestImpl(point, gfx::Insets(kResizeInsideBoundsSize));
 }
 

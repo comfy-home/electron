@@ -211,6 +211,38 @@ describe('BrowserWindow module', () => {
       await closed;
     });
 
+    (process.platform === 'linux' ? describe : describe.skip)('cornerRadius option', () => {
+      afterEach(async () => {
+        await closeWindow(w);
+      });
+
+      it('accepts a custom corner radius without crashing', () => {
+        w = new BrowserWindow({ show: false, frame: false, cornerRadius: 70 });
+        expect(w.id).to.be.a('number');
+      });
+
+      it('accepts cornerRadius of 0', () => {
+        w = new BrowserWindow({ show: false, frame: false, cornerRadius: 0 });
+        expect(w.id).to.be.a('number');
+      });
+
+      it('accepts cornerRadius with roundedCorners disabled', () => {
+        w = new BrowserWindow({ show: false, frame: false, roundedCorners: false, cornerRadius: 20 });
+        expect(w.id).to.be.a('number');
+      });
+
+      it('does not crash when entering fullscreen with custom corner radius', async () => {
+        w = new BrowserWindow({ frame: false, cornerRadius: 70 });
+        const enterFullScreen = once(w, 'enter-full-screen');
+        w.setFullScreen(true);
+        await enterFullScreen;
+        await setTimeout();
+        const leaveFullScreen = once(w, 'leave-full-screen');
+        w.setFullScreen(false);
+        await leaveFullScreen;
+      });
+    });
+
     it('should not crash if called after webContents is destroyed', () => {
       w.webContents.destroy();
       w.webContents.on('destroyed', () => w.close());
