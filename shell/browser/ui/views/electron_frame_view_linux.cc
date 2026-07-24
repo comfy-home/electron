@@ -95,7 +95,9 @@ int ElectronFrameViewLinux::NonClientHitTest(const gfx::Point& point) {
     // hit_r, centered at (hit_r, hit_r) from the window corner. This places
     // the circle tangent to the window edges so it covers the visible part
     // of the rounded corner (inside the compositor's input region).
-    int hit_r = corner > 40 ? corner / 5 : corner > 10 ? corner / 3 : corner * 6 / 5;
+    int hit_r = corner > 40   ? corner / 5
+                : corner > 10 ? corner / 3
+                              : corner * 6 / 5;
 
     // The MD shadow has a downward y offset, making the compositor's input
     // region clip the bottom edge more than the top. Offset bottom corner
@@ -129,7 +131,8 @@ int ElectronFrameViewLinux::NonClientHitTest(const gfx::Point& point) {
     dx = point.x() - cx;
     dy = point.y() - cy;
     dist2 = dx * dx + dy * dy;
-    if (dist2 <= r2 && in_opaque(border.left() + corner, border.top() + corner)) {
+    if (dist2 <= r2 &&
+        in_opaque(border.left() + corner, border.top() + corner)) {
       return HTTOPLEFT;
     }
     cx = w - border.right() - hit_r;
@@ -137,7 +140,8 @@ int ElectronFrameViewLinux::NonClientHitTest(const gfx::Point& point) {
     dx = point.x() - cx;
     dy = point.y() - cy;
     dist2 = dx * dx + dy * dy;
-    if (dist2 <= r2 && in_opaque(w - border.right() - corner, border.top() + corner)) {
+    if (dist2 <= r2 &&
+        in_opaque(w - border.right() - corner, border.top() + corner)) {
       return HTTOPRIGHT;
     }
     cx = border.left() + hit_r;
@@ -145,7 +149,8 @@ int ElectronFrameViewLinux::NonClientHitTest(const gfx::Point& point) {
     dx = point.x() - cx;
     dy = point.y() - cy;
     dist2 = dx * dx + dy * dy;
-    if (dist2 <= r2 && in_opaque(border.left() + corner, h - border.bottom() - corner)) {
+    if (dist2 <= r2 &&
+        in_opaque(border.left() + corner, h - border.bottom() - corner)) {
       return HTBOTTOMLEFT;
     }
     cx = w - border.right() - hit_r;
@@ -153,7 +158,8 @@ int ElectronFrameViewLinux::NonClientHitTest(const gfx::Point& point) {
     dx = point.x() - cx;
     dy = point.y() - cy;
     dist2 = dx * dx + dy * dy;
-    if (dist2 <= r2 && in_opaque(w - border.right() - corner, h - border.bottom() - corner)) {
+    if (dist2 <= r2 &&
+        in_opaque(w - border.right() - corner, h - border.bottom() - corner)) {
       return HTBOTTOMRIGHT;
     }
 
@@ -166,20 +172,20 @@ int ElectronFrameViewLinux::NonClientHitTest(const gfx::Point& point) {
     int content_top = border.top() + corner;
     int content_bottom = h - border.bottom() - corner;
 
-    if (point.y() < border.top() &&
-        point.x() >= content_left && point.x() < content_right) {
+    if (point.y() < border.top() && point.x() >= content_left &&
+        point.x() < content_right) {
       return HTTOP;
     }
-    if (point.y() >= h - border.bottom() &&
-        point.x() >= content_left && point.x() < content_right) {
+    if (point.y() >= h - border.bottom() && point.x() >= content_left &&
+        point.x() < content_right) {
       return HTBOTTOM;
     }
-    if (point.x() < border.left() &&
-        point.y() >= content_top && point.y() < content_bottom) {
+    if (point.x() < border.left() && point.y() >= content_top &&
+        point.y() < content_bottom) {
       return HTLEFT;
     }
-    if (point.x() >= w - border.right() &&
-        point.y() >= content_top && point.y() < content_bottom) {
+    if (point.x() >= w - border.right() && point.y() >= content_top &&
+        point.y() < content_bottom) {
       return HTRIGHT;
     }
 
@@ -194,13 +200,20 @@ int ElectronFrameViewLinux::NonClientHitTest(const gfx::Point& point) {
   // platforms, use it normally.
   int result = HTCLIENT;
 #if BUILDFLAG(IS_LINUX)
-  if (!x11_util::IsWayland())
-#endif
+  if (!x11_util::IsWayland()) {
+    result = FrameViewLinux::NonClientHitTest(point);
+    if (result != HTCLIENT) {
+      return result;
+    }
+  }
+#else
   {
     result = FrameViewLinux::NonClientHitTest(point);
-    if (result != HTCLIENT)
+    if (result != HTCLIENT) {
       return result;
+    }
   }
+#endif
 
   // The base class returns HTCLIENT for the WCO titlebar area because the
   // client view overlaps it. Check buttons and the draggable overlay region.

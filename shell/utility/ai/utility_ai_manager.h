@@ -113,8 +113,7 @@ class UtilityAIManager : public blink::mojom::AIManager {
   void CanCreateClassifier(blink::mojom::AIClassifierCreateOptionsPtr options,
                            CanCreateClassifierCallback callback) override;
   void CreateClassifier(
-      mojo::PendingRemote<blink::mojom::AIManagerCreateClassifierClient>
-          client,
+      mojo::PendingRemote<blink::mojom::AIManagerCreateClassifierClient> client,
       blink::mojom::AIClassifierCreateOptionsPtr options,
       mojo::PendingRemote<on_device_model::mojom::DownloadObserver> monitor)
       override;
