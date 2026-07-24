@@ -273,9 +273,9 @@ void ElectronDesktopWindowTreeHostLinux::DispatchEvent(ui::Event* event) {
           gfx::ToRoundedPoint(location_in_dip));
 
       auto is_resize_component = [](int ht) {
-        return ht == HTTOP || ht == HTBOTTOM || ht == HTLEFT ||
-               ht == HTRIGHT || ht == HTTOPLEFT || ht == HTTOPRIGHT ||
-               ht == HTBOTTOMLEFT || ht == HTBOTTOMRIGHT;
+        return ht == HTTOP || ht == HTBOTTOM || ht == HTLEFT || ht == HTRIGHT ||
+               ht == HTTOPLEFT || ht == HTTOPRIGHT || ht == HTBOTTOMLEFT ||
+               ht == HTBOTTOMRIGHT;
       };
 
       ui::mojom::CursorType cursor_type = ui::mojom::CursorType::kNull;
